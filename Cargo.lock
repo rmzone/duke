@@ -924,6 +924,7 @@ dependencies = [
  "bevy_color",
  "bevy_ecs",
  "bevy_gizmos_macros",
+ "bevy_light",
  "bevy_math",
  "bevy_reflect",
  "bevy_time",
@@ -957,6 +958,7 @@ dependencies = [
  "bevy_image",
  "bevy_math",
  "bevy_mesh",
+ "bevy_pbr",
  "bevy_render",
  "bevy_shader",
  "bevy_sprite_render",
@@ -1055,6 +1057,7 @@ dependencies = [
  "bevy_image",
  "bevy_input",
  "bevy_input_focus",
+ "bevy_light",
  "bevy_log",
  "bevy_math",
  "bevy_mesh",
@@ -1499,6 +1502,15 @@ dependencies = [
  "fixedbitset",
  "nonmax",
  "tracing",
+]
+
+[[package]]
+name = "bevy_spritesheet_animation"
+version = "6.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c9fa4d6b23928f3b44822702d0a97fdfbe78557a7d6266fe8e135f9022e70f33"
+dependencies = [
+ "bevy",
 ]
 
 [[package]]
@@ -2421,6 +2433,7 @@ dependencies = [
  "bevy",
  "bevy-inspector-egui",
  "bevy_ecs_tiled",
+ "bevy_spritesheet_animation",
  "rand 0.10.1",
  "thiserror 2.0.18",
  "tracing",

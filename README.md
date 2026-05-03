@@ -12,3 +12,4 @@ y offset per layer -78.0?
 * https://adrien-bon.github.io/bevy_ecs_tiled/FAQ.html
 * https://github.com/edgarssilva/relentless-revenge/tree/master
 * https://www.kenney.nl/
+* https://github.com/merwaaan/bevy_spritesheet_animation

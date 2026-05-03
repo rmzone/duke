@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::*;
 use duke::helper;
 use std::time::Duration;
+use bevy_spritesheet_animation::prelude::*;
 
 fn main() -> AppExit {
     App::new()
@@ -19,17 +20,57 @@ fn main() -> AppExit {
         .add_plugins(TiledPlugin::default())
         .add_plugins(helper::HelperPlugin)
         .add_plugins(TiledDebugPluginGroup) // see for how to display: https://bevy-cheatbook.github.io/cookbook/print-framerate.html
+        .add_plugins(SpritesheetAnimationPlugin)
         .add_systems(Startup, startup)
-        .add_systems(Update, execute_animations)
+        .add_systems(Update, control_character)
         .run()
+}
+
+fn control_character(
+    time: Res<Time>,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut commands: Commands,
+    character: Single<(
+        Entity,
+        &mut Sprite,
+        &mut SpritesheetAnimation,
+        &mut Transform,
+        //Option<&Shooting>, TODO: add player direction
+    )>,
+    my_animations: Res<PlayerAnimations>,
+    mut messages: MessageReader<AnimationEvent>,
+){
+    let (entity, mut sprite, mut animation, mut transform) = character.into_inner();
+
+    if keyboard.pressed(KeyCode::ArrowLeft) {
+        if animation.animation != my_animations.idle_west {
+            animation.switch(my_animations.idle_west.clone());
+        }
+    }
+    else if keyboard.pressed(KeyCode::ArrowRight) {
+        if animation.animation != my_animations.idle_east {
+            animation.switch(my_animations.idle_east.clone());
+        }
+    }
+    else if keyboard.pressed(KeyCode::ArrowUp) {
+        if animation.animation != my_animations.idle_north {
+            animation.switch(my_animations.idle_north.clone());
+        }
+    }
+    else if keyboard.pressed(KeyCode::ArrowDown) {
+        if animation.animation != my_animations.idle_south {
+            animation.switch(my_animations.idle_south.clone());
+        }
+    }
 }
 
 fn startup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    // mut meshes: ResMut<Assets<Mesh>>,
+    // mut materials: ResMut<Assets<ColorMaterial>>,
     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+    mut animations: ResMut<Assets<Animation>>,
 ) {
     commands.spawn(Camera2d);
 
@@ -47,84 +88,81 @@ fn startup(
         // size to be exactly one tile along the y-axis.
         TilemapRenderSettings {
             render_chunk_size: UVec2::new(64, 1),
-            y_sort: true,
+            y_sort: true, // important for the tilemap to display correctly
         },
     ));
 
-    // TODO: make sure player and map have the same scale
+    // DONE: make sure player and map have the same scale
     // TODO: track camera to player
     // TODO: collisions and display player behind tiles
+    // TODO: remove helpers once all the base code is working (maybe have a toggle to help in future dev?)
 
     // Add dummy player
     // Load the sprite sheet using the `AssetServer`
-    let texture = asset_server.load("entities/player/GUMDROP.E64.R.PNG");
+    let player_image = asset_server.load("entities/player/GUMDROP.E64.R.PNG");
+    let spritesheet = Spritesheet::new(&player_image, 10, 48);
 
-    // The sprite sheet has 10 sprites arranged in a row, and they are all 64px x 64px
-    let layout = TextureAtlasLayout::from_grid(UVec2::splat(64), 10, 48, None, None);
-    let texture_atlas_layout = texture_atlas_layouts.add(layout);
+    let idle_south_animation = spritesheet
+        .create_animation()
+        .add_horizontal_strip(0, 0, 7)
+        .set_duration(AnimationDuration::PerRepetition(1500))
+        .set_repetitions(AnimationRepeat::Loop)
+        .build();
 
-    // The first (left-hand) sprite runs at 10 FPS
-    let animation_config = AnimationConfig::new(1, 6, 10);
+    let idle_east_animation = spritesheet
+        .create_animation()
+        .add_horizontal_strip(0, 1, 7)
+        .set_duration(AnimationDuration::PerRepetition(1500))
+        .set_repetitions(AnimationRepeat::Loop)
+        .build();
 
-    // Create the first (left-hand) sprite
+    let idle_north_animation = spritesheet
+        .create_animation()
+        .add_horizontal_strip(0, 2, 7)
+        .set_duration(AnimationDuration::PerRepetition(1500))
+        .set_repetitions(AnimationRepeat::Loop)
+        .build();
+
+    let idle_west_animation = spritesheet
+        .create_animation()
+        .add_horizontal_strip(0, 3, 7)
+        .set_duration(AnimationDuration::PerRepetition(1500))
+        .set_repetitions(AnimationRepeat::Loop)
+        .build();
+
+    let idle_south_animation_handle = animations.add(idle_south_animation);
+    let idle_east_animation_handle = animations.add(idle_east_animation);
+    let idle_north_animation_handle = animations.add(idle_north_animation);
+    let idle_west_animation_handle = animations.add(idle_west_animation);
+
+    // Store the animations as a resource
+    commands.insert_resource(PlayerAnimations {
+        idle_south: idle_south_animation_handle.clone(),
+        idle_east: idle_east_animation_handle,
+        idle_north: idle_north_animation_handle,
+        idle_west: idle_west_animation_handle,
+    });
+
+    let sprite = spritesheet
+        // .with_loaded_image(&player_image)
+        .with_size_hint(640, 3072)
+        .sprite(&mut texture_atlas_layouts);
+
     commands.spawn((
-        Sprite {
-            image: texture.clone(),
-            texture_atlas: Some(TextureAtlas {
-                layout: texture_atlas_layout.clone(),
-                index: animation_config.first_sprite_index,
-            }),
-            ..default()
-        },
+        sprite,
+        SpritesheetAnimation::new(idle_south_animation_handle),
         Transform::from_scale(Vec3::splat(2.0))
             .with_translation(Vec3::new(0.0, 0.0, 0.0)),
-        animation_config,
+
     ));
+
 }
 
-// This system loops through all the sprites in the `TextureAtlas`, from  `first_sprite_index` to
-// `last_sprite_index` (both defined in `AnimationConfig`).
-fn execute_animations(time: Res<Time>, mut query: Query<(&mut AnimationConfig, &mut Sprite)>) {
-    for (mut config, mut sprite) in &mut query {
-        // We track how long the current sprite has been displayed for
-        config.frame_timer.tick(time.delta());
-
-        // If it has been displayed for the user-defined amount of time (fps)...
-        if config.frame_timer.just_finished()
-            && let Some(atlas) = &mut sprite.texture_atlas
-        {
-            if atlas.index == config.last_sprite_index {
-                // ...and it IS the last frame, then we move back to the first frame and stop.
-                atlas.index = config.first_sprite_index;
-            } else {
-                // ...and it is NOT the last frame, then we move to the next frame...
-                atlas.index += 1;
-                // ...and reset the frame timer to start counting all over again
-                config.frame_timer = AnimationConfig::timer_from_fps(config.fps);
-            }
-        }
-    }
-}
-
-#[derive(Component)]
-struct AnimationConfig {
-    first_sprite_index: usize,
-    last_sprite_index: usize,
-    fps: u8,
-    frame_timer: Timer,
-}
-
-impl AnimationConfig {
-    fn new(first: usize, last: usize, fps: u8) -> Self {
-        Self {
-            first_sprite_index: first,
-            last_sprite_index: last,
-            fps,
-            frame_timer: Self::timer_from_fps(fps),
-        }
-    }
-
-    fn timer_from_fps(fps: u8) -> Timer {
-        Timer::new(Duration::from_secs_f32(1.0 / (fps as f32)), TimerMode::Once)
-    }
+#[derive(Resource)]
+struct PlayerAnimations {
+    idle_south: Handle<Animation>,
+    idle_east: Handle<Animation>,
+    idle_north: Handle<Animation>,
+    idle_west: Handle<Animation>,
+    // ...
 }
