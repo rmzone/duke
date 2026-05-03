@@ -1,29 +1,25 @@
-use std::thread::spawn;
-use bevy::color::palettes::css::ALICE_BLUE;
-use bevy::input::common_conditions::input_toggle_active;
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::*;
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 use duke::helper;
 
 fn main() -> AppExit {
     App::new()
-        // Bevy default plugins: prevent blur effect by changing default sampling
-        .add_plugins(DefaultPlugins.build().set(ImagePlugin::default_nearest()))
-        // .add_plugins(WorldInspectorPlugin::default().run_if(input_toggle_active(false, KeyCode::Escape)))
-        // Add bevy_ecs_tiled plugin: bevy_ecs_tilemap::TilemapPlugin will
-        // be automatically added as well if it's not already done
+        .add_plugins(DefaultPlugins.build()
+            .set(WindowPlugin{
+                primary_window: Some(Window {
+                    title: String::from(
+                        "Duke",
+                    ),
+                    ..Default::default()
+                }),
+                ..default()
+            })
+            .set(ImagePlugin::default_nearest()))
         .add_plugins(TiledPlugin::default())
-        // Examples helper plugins, such as the logic to pan and zoom the camera
-        // This should not be used directly in your game (but you can always have a look)
         .add_plugins(helper::HelperPlugin)
-        // Add bevy_ecs_tiled debug plugins
         .add_plugins(TiledDebugPluginGroup) // see for how to display: https://bevy-cheatbook.github.io/cookbook/print-framerate.html
-        // .add_plugins(FrameTimeDiagnosticsPlugin::default())
-        // Add our systems and run the app!
         .add_systems(Startup, startup)
-        .add_systems(Update, switch_map)
+        // .add_systems(Update, switch_map)
         .run()
 }
 
@@ -35,40 +31,26 @@ fn startup(
 ) {
     commands.spawn(Camera2d);
 
-    // // Load a map asset and retrieve its handle
-    // let map_handle: Handle<TiledMapAsset> = asset_server.load("levels/level1.tmx");
-    //
-    // // Spawn a new entity with the TiledMap component
-    // commands.spawn(TiledMap(map_handle));
+    // Load a map asset and retrieve its handle
+    let map_handle: Handle<TiledMapAsset> = asset_server.load("levels/level1.tmx");
 
-    let default_callback: helper::assets::MapInfosCallback = |c| {
-        c.insert((
-            TilemapAnchor::Center,
-            // For isometric maps, it can be useful to tweak `bevy_ecs_tilemap` render settings.
-            // [`TilemapRenderSettings`] provides the `y_sort`` parameter to sort chunks using their y-axis
-            // position during rendering.
-            // However, it applies to whole chunks, not individual tile, so we have to force the chunk
-            // size to be exactly one tile along the y-axis.
-            TilemapRenderSettings {
-                render_chunk_size: UVec2::new(128, 1),
-                y_sort: true,
-            },
-        ));
-    };
-
-    // The `helper::AssetsManager` struct is an helper to easily switch between maps in examples.
-    // You should NOT use it directly in your games.
-    let mut mgr = helper::assets::AssetsManager::new(&mut commands);
-    mgr.add_map(helper::assets::MapInfos::new(
-        &asset_server,
-        "levels/level1.tmx",
-        "A finite 'diamond' isometric map",
-        default_callback,
+    // Spawn a new entity with the TiledMap component
+    commands.spawn((
+        TiledMap(map_handle),
+        TilemapAnchor::Center,
+        // For isometric maps, it can be useful to tweak `bevy_ecs_tilemap` render settings.
+        // [`TilemapRenderSettings`] provides the `y_sort`` parameter to sort chunks using their y-axis
+        // position during rendering.
+        // However, it applies to whole chunks, not individual tile, so we have to force the chunk
+        // size to be exactly one tile along the y-axis.
+        TilemapRenderSettings {
+            render_chunk_size: UVec2::new(64, 1),
+            y_sort: true,
+        },
     ));
-    commands.insert_resource(mgr);
 
     // Add dummy player
-    let player =meshes.add(Rectangle::new(50.0, 50.0));
+    let player =meshes.add(Capsule2d::new(25.0, 50.0));
     let color = Color::hsl(360., 0.95, 0.7);
 
     commands.spawn((
@@ -80,14 +62,4 @@ fn startup(
             0.0,
         ),
     ));
-}
-
-fn switch_map(
-    mut commands: Commands,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut mgr: ResMut<helper::assets::AssetsManager>,
-) {
-    if keyboard_input.just_pressed(KeyCode::Space) {
-        mgr.cycle_map(&mut commands);
-    }
 }
