@@ -1,7 +1,10 @@
+use std::thread::spawn;
+use bevy::color::palettes::css::ALICE_BLUE;
 use bevy::input::common_conditions::input_toggle_active;
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 use duke::helper;
 
 fn main() -> AppExit {
@@ -16,14 +19,20 @@ fn main() -> AppExit {
         // This should not be used directly in your game (but you can always have a look)
         .add_plugins(helper::HelperPlugin)
         // Add bevy_ecs_tiled debug plugins
-        .add_plugins(TiledDebugPluginGroup)
+        .add_plugins(TiledDebugPluginGroup) // see for how to display: https://bevy-cheatbook.github.io/cookbook/print-framerate.html
+        // .add_plugins(FrameTimeDiagnosticsPlugin::default())
         // Add our systems and run the app!
         .add_systems(Startup, startup)
         .add_systems(Update, switch_map)
         .run()
 }
 
-fn startup(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn startup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
     commands.spawn(Camera2d);
 
     // // Load a map asset and retrieve its handle
@@ -57,6 +66,20 @@ fn startup(mut commands: Commands, asset_server: Res<AssetServer>) {
         default_callback,
     ));
     commands.insert_resource(mgr);
+
+    // Add dummy player
+    let player =meshes.add(Rectangle::new(50.0, 50.0));
+    let color = Color::hsl(360., 0.95, 0.7);
+
+    commands.spawn((
+        Mesh2d(player),
+        MeshMaterial2d(materials.add(color)),
+        Transform::from_xyz(
+            -0.0,
+            0.0,
+            0.0,
+        ),
+    ));
 }
 
 fn switch_map(
