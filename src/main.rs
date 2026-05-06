@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::*;
 use duke::helper;
-use std::time::Duration;
 use bevy_spritesheet_animation::prelude::*;
 
 fn main() -> AppExit {
@@ -19,8 +18,8 @@ fn main() -> AppExit {
             .set(ImagePlugin::default_nearest()))
         .add_plugins(TiledPlugin::default())
         .add_plugins(helper::HelperPlugin)
+        .add_plugins(AnimationPlugin)
         .add_plugins(TiledDebugPluginGroup) // see for how to display: https://bevy-cheatbook.github.io/cookbook/print-framerate.html
-        .add_plugins(SpritesheetAnimationPlugin)
         .add_systems(Startup, startup)
         .add_systems(Update, control_character)
         .run()
@@ -156,6 +155,10 @@ fn startup(
 
     ));
 
+}
+
+fn spawn_player() {
+    // TODO: with PlayerBundle?
 }
 
 #[derive(Resource)]
